@@ -1,0 +1,142 @@
+---
+title: "Project 3"
+author: "Lucas Cozuc"
+date: "2025-06-04"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+panel_data <- read.csv("~/Desktop/Econ 104 R/PanelData.csv")
+```
+
+
+## 1. Panel Data Model
+
+(a) Briefly discuss the question you are trying to answer.
+
+\textcolor{blue}{The dataset used in this project contains annual cost data for six major U.S. airlines over a fifteen-year period from 1970 to 1984, resulting in 90 total observations. This panel includes variables on total operating cost (measured in thousands of dollars), airline output (measured by an index of revenue passenger miles), fuel price, and load factor, which captures average capacity utilization. Each observation corresponds to a specific airline in a specific year, allowing us to account for both firm-level and time-specific effects.}
+
+\textcolor{blue}{The goal of this analysis is to understand what factors drive operating costs in the airline industry. Specifically, we’re looking at how output, fuel prices, and load factor affect total costs across different airlines and over time. We want to see if producing more output helps airlines lower costs through economies of scale, whether rising fuel prices significantly increase operating expenses, and if having fuller flights (higher load factor) helps keep costs down.}
+
+
+(b) Provide a descriptive analysis of your variables. This should include relevant
+figures with comments including some graphical depiction of individual heterogeneity; no unnecessary figures!
+
+\textcolor{blue}{Here is brief overview of the variables that will be used in our analysis:
+I=Airline - The dataset includes six unnamed airlines that are each given a number to represent the airline between 1 and 6.}
+
+\textcolor{blue}{T=Year - The data is observed over 15 total years, with T=1 being 1970 and T=15 being 1984.}
+
+\textcolor{blue}{Q=output, in revenue passenger miles, index number - Output is measured in revenue passenger miles (RPMs). A revenue passenger mile represents one paying passenger traveling one mile. For example, if an airline flies 100 paying passengers a distance of 1,000 miles, then that would be 100,000 RPMs. As Q is an index of RPMs (not the raw number of RPMs), it means that the values have been normalized (or indexed) by dividing each airline’s RPMs by a reference value (which we don’t know as it wasn’t given). Q ranges from 0.03768 and 1.93656. The mean of Q is 0.54499.}
+
+
+```{r}
+library(ggplot2)
+
+
+ggplot(panel_data, aes(x = Q, y = C, color = factor(I))) +
+  geom_point(size = 2) +
+  labs(
+    title = "Total Cost vs Output by Airline",
+    x = "Output (Revenue Passenger Miles)",
+    y = "Total Cost ($1000s)",
+    color = "Airline"
+  ) +
+  theme_minimal()
+
+
+```
+
+
+(c) Fit the three models below, and identify which model is your preferred one and
+why. Make sure to include your statistical diagnostics to support your conclusion
+and to comment on your findings.
+
+## Pooled Model
+
+
+```{r, warning=FALSE}
+library(plm)
+library(lmtest)
+library(stargazer)
+library(ggplot2)
+library(lmtest)
+
+#Checking if panel data is balanced
+is.pbalanced(panel_data)
+
+#Pooled model creation
+pooled_model <- plm(log(C)~Q+PF+LF,model="pooling",data=panel_data)
+summary(pooled_model)
+
+#Cluster Robust SE
+crse <- coeftest(pooled_model, vcov=vcovHC(pooled_model,type="HC0",cluster="group"))
+
+stargazer(pooled_model, crse, column.labels = c("\\textit{Pooled}", "\\textit{Pooled(prse)}"),
+model.names = FALSE,type = "text")
+
+fitted_vals <- fitted(pooled_model)
+residuals_vals <- residuals(pooled_model)
+
+resid_df <- data.frame(
+  Fitted = fitted_vals,
+  Residual = residuals_vals)
+
+ggplot(resid_df, aes(x = Fitted, y = Residual)) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Residuals vs. Fitted Values",
+    x = "Fitted Values",
+    y = "Residuals"
+  ) +
+  theme_minimal()
+
+
+bptest(pooled_model)
+
+
+
+
+
+```
+
+
+install.packages("AER")
+
+
+
+```{r}
+library(AER)
+data("NaturalGas")
+
+```
+
+
+```{r}
+fixed_effect <- lm(formula = log(C) ~ Q + PF + LF + factor(I) - 1, data = panel_data)
+summary(fixed_effect)
+
+bptest(fixed_effect)
+AIC(fixed_effect)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+

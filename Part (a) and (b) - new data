@@ -1,0 +1,169 @@
+---
+title: "Project 3"
+author: 
+  - "Alexis McCracken"
+  - "Blake Kancigor"
+  - "Lucas Cozuc"
+  - "Scott Corbin"
+date: "2025-06-04"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r}
+# Load required libraries
+library(AER)
+library(plm)
+library(lmtest)
+library(sandwich)
+library(stargazer)
+library(ggplot2)
+library(gplots)
+library(dplyr)
+```
+
+```{r}
+data("NaturalGas")
+ngas <- subset(NaturalGas, state %in% c("CA", "NY", "TX", "IL", "FL"))
+ngas <- pdata.frame(ngas, index = c("state", "year"))
+ngas$ln_consump <- log(ngas$consumption)
+ngas$ln_price <- log(ngas$price)
+ngas$ln_income <- log(ngas$income)
+ngas$ln_heat <- log(ngas$heating)
+```
+
+## (a) Briefly discuss your data and the question you are trying to answer with your Model.
+\textcolor{blue}{
+For our project, we are using the \texttt{NaturalGas} dataset from the \texttt{AER} package. It contains annual panel data on natural gas consumption across U.S. states. We are focusing our analysis on five representative states: California, New York, Texas, Illinois, and Florida. Our research question is: How do price, income, and weather influence natural gas consumption in the residential sector across different U.S. states? Specifically, we hypothesize that higher prices decrease consumption, higher income increases it, and colder weather (measured by heating degree days) leads to higher consumption. We aim to determine which panel model — pooled OLS, fixed effects, or random effects — best captures the variation in consumption behavior, and use this to inform a data-driven conclusion.
+}
+
+
+## (b) Provide a descriptive analysis of your variables. This should include relevant figures with comments, including some graphical depiction of individual hetero-Geneity; no unnecessary figures
+
+
+```{r}
+summary(ngas$consumption)
+```
+\textcolor{blue}{Consumption refers to the average residential natural gas usage, measure in cubic feet. The values range from 9430 to 637,289, with a mean of 281,723 and median of 313,342. The slight left skew (mean < median) suggests varaibility in how households across states consume energy.}
+
+```{r}
+summary(ngas$price)
+```
+\textcolor{blue}{Price refers to the price of natural gas, measured in dollars per thousand cubic feet. Price varies from \$0.87 to \$8.06. The mean is \$3.72, and the median is \$3.25. Since 88.2 percent of variation is explained over time, it is reasonable to assume that nationwide price trends such as inflation and energy shocks due to temporal effects may have an influence}
+
+
+```{r}
+summary(ngas$income)
+```
+\textcolor{blue}{Income represents real per-capita income by state. it ranges from \$7,931 to \$16,425, with a mean of \$11,721. About 60.1 percent of the variation comes from changes over time, which may indicate economic growth and structural changes within states.}
+
+```{r}
+summary(ngas$heating)
+```
+\textcolor{blue}{Heating Degree Days serve as a climate proxy. It ranges from 481 (warmer states like Florida) to 6,444 (colder states like Illinois), with a mean of 2,852. Nearly all the variation (98.9 percent) is between states, confirming that weather patterns are geographically driven rather than time-driven in this panel.}
+
+```{r}
+ngas_df <- as.data.frame(ngas)
+
+ngas_df <- ngas_df %>%
+  mutate(
+    ln_consump = log(consumption),
+    ln_price = log(price),
+    ln_income = log(income),
+    ln_heating = log(heating)
+  )
+```
+
+```{r}
+summary(select(ngas_df, ln_consump, ln_price, ln_income, ln_heating))
+```
+
+```{r}
+ggplot(ngas_df, aes(x = year, y = ln_consump, color = state, group = state)) +
+  geom_line(linewidth = 1.1) +
+  labs(title = "Log Natural Gas Consumption Over Time by State",
+       x = "Year", y = "Log(Consumption)") +
+  theme_minimal()
+```
+\textcolor{blue}{
+This figure shows the log of natural gas consumption over time by state. Consumption levels are consistent in rank across states.  California remains the highest throughout, while Florida is consistently the lowest. These parallel trends with different levels reflect individual heterogeneity, where each state has a unique, time-invariant baseline level of usage. This visual supports the use of fixed effects in panel regression.
+}
+
+```{r}
+ggplot(ngas_df, aes(x = state, y = ln_consump, fill = state)) +
+  geom_boxplot() +
+  labs(
+    title = "Distribution of Log Natural Gas Consumption by State",
+    x = "State",
+    y = "Log(Consumption)",
+    fill = "State"
+  ) +
+  theme_minimal()
+```
+\textcolor{blue}{
+This boxplot further highlights cross-sectional differences in log consumption. California and New York show the highest medians and widest distributions, while Florida exhibits the lowest and tightest range. The relative spread also helps identify intra-state variance, though the bulk of heterogeneity remains between states, again supporting fixed effects models.
+}
+
+
+```{r}
+plotmeans(consumption ~ state, data = ngas_df, main = "Mean Natural Gas Consumption by State")
+```
+\textcolor{blue}{
+This plotmeans figure illustrates the mean consumption per state, with confidence intervals. There is clear variation in baseline consumption levels between states, confirming the presence of unobserved heterogeneity. California has the highest mean, while Florida is much lower. These state-specific patterns support the use of a model that can control for individual (state-level) fixed effects.
+}
+
+```{r}
+plotmeans(price ~ state, data = ngas_df, main = "Mean Price of Natural Gas by State")
+```
+\textcolor{blue}{
+This figure shows that average price levels differ only slightly across states, confirming that most of the variation in price is due to time effects. This visual matches the summary statistics and variance decomposition, showing less individual heterogeneity in price than in other variables.
+}
+
+```{r}
+plotmeans(income ~ state, data = ngas_df, main = "Mean Income by State")
+```
+\textcolor{blue}{
+This plot shows some state-level differences in mean income, but the variation is more modest than for consumption or heating. The visual supports the earlier claim that income contains both time and cross-sectional variation, making it a balanced explanatory variable.
+}
+
+```{r}
+plotmeans(heating ~ state, data = ngas_df, main = "Mean Heating Degree Days by State")
+```
+\textcolor{blue}{
+This plot confirms that heating degree days are determined almost entirely by geography. Florida has the lowest HDD values (warmest climate), while Illinois and New York rank high. These stable and persistent differences across states validate the use of this variable as a key determinant of gas consumption, especially in a fixed-effects framework.
+}
+
+```{r}
+ggplot(ngas_df, aes(x = ln_price, y = ln_consump, color = state)) +
+  geom_point(alpha = 0.8) +
+  labs(title = "Log-Consumption vs Log-Price by State",
+       x = "Log(Price of Natural Gas)", y = "Log(Consumption)") +
+  theme_minimal()
+```
+\textcolor{blue}{
+This scatterplot reveals a negative relationship between log price and log consumption, consistent with demand theory: higher prices reduce consumption. However, the slope and density vary across states, indicating state-specific sensitivities — another form of individual heterogeneity.
+}
+
+```{r}
+ggplot(ngas_df, aes(x = ln_income, y = ln_consump, color = state)) +
+  geom_point(alpha = 0.8) +
+  labs(title = "Log-Consumption vs Log-Income by State",
+       x = "Log(Income)", y = "Log(Consumption)") +
+  theme_minimal()
+```
+\textcolor{blue}{
+The plot shows a positive relationship between log income and log consumption. Households in higher-income states (e.g., CA and NY) tend to consume more gas, possibly due to larger homes or higher heating expectations. Again, we see cross-state variability in slopes and clustering, which reflects heterogeneous responses.
+}
+
+```{r}
+ggplot(ngas_df, aes(x = ln_heating, y = ln_consump, color = state)) +
+  geom_point(size = 2) +
+  labs(title = "Log Natural Gas Consumption vs Log Heating Degree Days",
+       x = "Log(Heating Degree Days)", y = "Log(Consumption)") +
+  theme_minimal()
+```
+\textcolor{blue}{
+This plot demonstrates a strong positive correlation between climate severity and gas consumption. States with more heating days (colder climates) consistently consume more gas. This relationship underlines the importance of weather as a key determinant of natural gas use and highlights persistent structural differences across regions.
+}

@@ -1,0 +1,58 @@
+---
+title: " Econ 104 Project 3"
+author: "Scott Corbin, Lucas Cozuc, Alexis Mccracken, and Blake Kancigor"
+date: "2025-06-04"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+panel_data <- read.csv("~/Desktop/ECON 104 project 3/PanelData.csv")
+```
+## (a) Briefly discuss your data and the question you are trying to answer with your Model.
+\textcolor{blue}{The data we selected for this project follows the cost data of 6 U.S. Airlines from 1970 to 1984. This data looks at the output (in revenue passenger miles, index number), the price of fuel, and the load factor (the average capacity utilization of the fleet). We can use this data to compare the different airlines yearly, to determine which airlines have the highest cost.}
+
+\textcolor{blue}{The goal of this analysis is to understand what factors drive operating costs in the airline industry. Specifically, we’re looking at how output, fuel prices, and load factor affect total costs across different airlines and over time. We want to see if producing more output helps airlines lower costs through economies of scale, whether rising fuel prices significantly increase operating expenses, and if having fuller flights (higher load factor) helps keep costs down.}
+
+## (b) Provide a descriptive analysis of your variables. This should include relevant figures with comments, including some graphical depiction of individual hetero-Geneity; no unnecessary figures!
+
+\textcolor{blue}{Here is brief overview of the variables that will be used in our analysis:}
+
+\textcolor{blue}{I=Airline - The dataset includes six unnamed airlines that are each given a number to represent the airline between 1 and 6.}
+
+\textcolor{blue}{T=Year -  The data is observed over 15 total years, with T=1 being 1970 and T=15 being 1984.}
+
+\textcolor{blue}{Q=output, in revenue passenger miles, index number - Output is measured in revenue passenger miles (RPMs). A revenue passenger mile represents one paying passenger traveling one mile. For example, if an airline flies 100 paying passengers a distance of 1,000 miles, then that would be 100,000 RPMs. As Q is an index of RPMs (not the raw number of RPMs), it means that the values have been normalized (or indexed) by dividing each airline’s RPMs by a reference value (which we don’t know as it wasn’t given). Q ranges from 0.03768 and 1.93656. The mean of Q is 0.54499.
+}
+```{r}
+summary(panel_data$Q)
+```
+\textcolor{blue}{PF=Fuel Price - Fuel price is straightforward and represents the price of fuel. It varies significantly over time, ranging from 103,795 to 1,015,610. The information on the dataset does not specify what unit of dollars these prices are in. The mean fuel price is 471,683.}
+```{r}
+summary(panel_data$PF)
+```
+\textcolor{blue}{LF=Load Factor, the average capacity utilization of the fleet -  The load factor ranges from 0.4321 to 0.6763. The mean load factor is 0.5661. This indicates that there is moderate variation in how efficiently airlines utilize their fleet capacity.}
+```{r}
+summary(panel_data$LF)
+```
+\textcolor{blue}{Response variable C=total cost, in 1000 dollars -  The total cost ranges from 68,978 to 4,748,320 dollars or in correct units, roughly 68m to 4.8b dollars. The mean total cost is 1,122,524 dollars or in correct units, roughly 1.1b dollars. } 
+```{r}
+summary(panel_data$C)
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+library(ggplot2)
+```
+```{r}
+ggplot(panel_data, aes(x = Q, y = C, color = factor(I))) +
+  geom_point(size = 2) +
+  labs(
+    title = "Total Cost vs Output by Airline",
+    x = "Output (Revenue Passenger Miles)",
+    y = "Total Cost ($1000s)",
+    color = "Airline" ) 
+```
